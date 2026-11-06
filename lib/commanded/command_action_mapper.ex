@@ -411,9 +411,8 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
   
   # Execute a create action
   defp execute_create(resource, action_name, params, context) do
-    # In production, this would use actual Ash.Changeset functions
-    # For now, return mock success for testing
-    if Mix.env() == :test do
+    # Opt-in stub for this library's own tests (see `mock_actions?/0`).
+    if mock_actions?() do
       {:ok, %{action: action_name, params: params, context: context}}
     else
       changeset = Ash.Changeset.new(resource)
@@ -432,9 +431,8 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
     identity_value = Map.get(params, identity_field)
     
     if identity_value do
-      # In production, this would use actual Ash.Query and Ash.Changeset functions
-      # For now, return mock success for testing
-      if Mix.env() == :test do
+        # Opt-in stub for this library's own tests (see `mock_actions?/0`).
+      if mock_actions?() do
         {:ok, %{action: action_name, params: params, identity: identity_value, context: context}}
       else
         query = resource |> Ash.Query.for_read(:by_id) |> Ash.Query.set_context(context)
@@ -470,9 +468,8 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
     identity_value = Map.get(params, identity_field)
     
     if identity_value do
-      # In production, this would use actual Ash.Query and Ash.Changeset functions
-      # For now, return mock success for testing
-      if Mix.env() == :test do
+        # Opt-in stub for this library's own tests (see `mock_actions?/0`).
+      if mock_actions?() do
         {:ok, %{action: action_name, identity: identity_value, context: context}}
       else
         query = resource |> Ash.Query.for_read(:by_id) |> Ash.Query.set_context(context)
@@ -508,9 +505,8 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
     identity_value = Map.get(params, identity_field)
     
     if identity_value do
-      # In production, this would use actual Ash.Query functions
-      # For now, return mock success for testing
-      if Mix.env() == :test do
+        # Opt-in stub for this library's own tests (see `mock_actions?/0`).
+      if mock_actions?() do
         {:ok, %{action: action_name, identity: identity_value, context: context}}
       else
         query = resource |> Ash.Query.for_read(action_name) |> Ash.Query.set_context(context)
@@ -539,9 +535,8 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
   
   # Execute a custom action
   defp execute_custom(resource, action_name, params, context) do
-    # In production, this would use actual Ash.run_action
-    # For now, return mock success for testing
-    if Mix.env() == :test do
+    # Opt-in stub for this library's own tests (see `mock_actions?/0`).
+    if mock_actions?() do
       {:ok, %{action: action_name, params: params, context: context}}
     else
       # For custom actions, we'll use Ash.ActionInput to run generic actions
@@ -565,4 +560,13 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
       end
     end
   end
+
+  # Whether commands return a stub instead of running their Ash action.
+  #
+  # Off unless `config :ash_commanded, mock_actions?: true` is set, which this
+  # library's own test suite does. It used to be `Mix.env() == :test`, which
+  # meant an application's tests never ran their actions (every command
+  # "succeeded" without touching the data layer) and, because releases do not
+  # include Mix, every command raised in a release.
+  defp mock_actions?, do: Application.get_env(:ash_commanded, :mock_actions?, false)
 end
