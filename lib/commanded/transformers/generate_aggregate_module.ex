@@ -322,7 +322,7 @@ defmodule AshCommanded.Commanded.Transformers.GenerateAggregateModule do
               action_type: unquote(command.action_type),
               param_mapping: unquote(command.param_mapping),
               # Add metadata from the command if available
-              metadata: Map.get(command, :metadata, %{}),
+              metadata: AshCommanded.Commanded.CommandProcessor.metadata(command),
               # Include command for context reference
               command: command,
               # Include resource for context reference
@@ -337,7 +337,7 @@ defmodule AshCommanded.Commanded.Transformers.GenerateAggregateModule do
                 context,
                 fn cmd, ctx ->
                   # This is the final handler that runs after all middleware
-                  process_command(
+                  AshCommanded.Commanded.CommandProcessor.process(
                     ctx.aggregate,
                     cmd,
                     resource_module,
@@ -353,7 +353,12 @@ defmodule AshCommanded.Commanded.Transformers.GenerateAggregateModule do
                       unquote(in_transaction_arg) ++
                       unquote(repo_arg) ++
                       unquote(transaction_timeout_arg) ++
-                      unquote(transaction_isolation_arg)
+                      unquote(transaction_isolation_arg),
+                    include_aggregate?: unquote(command.include_aggregate?),
+                    include_command?: unquote(command.include_command?),
+                    include_metadata?: unquote(command.include_metadata?),
+                    context_prefix: unquote(command.context_prefix),
+                    static_context: unquote(Macro.escape(command.static_context || %{}))
                   )
                 end
               )
@@ -365,157 +370,6 @@ defmodule AshCommanded.Commanded.Transformers.GenerateAggregateModule do
                      command: unquote(command.name),
                      command_module: unquote(command_module),
                      error: inspect(e)
-                   }
-                 )}
-            end
-          end
-
-          # Helper function to process a command after middleware has been applied
-          defp process_command(
-                 aggregate,
-                 command,
-                 resource_module,
-                 action_name,
-                 identity_field,
-                 event_module,
-                 opts
-               ) do
-            # For a new aggregate - nil id means it doesn't exist yet
-            command_id = Map.get(command, identity_field)
-            aggregate_id = Map.get(aggregate, identity_field)
-
-            # Extract the middleware context - where we store command execution context
-            middleware_context = opts |> Keyword.get(:context, %{})
-
-            # Get context configuration from the command
-            include_aggregate? = unquote(command.include_aggregate?)
-            include_command? = unquote(command.include_command?)
-            include_metadata? = unquote(command.include_metadata?)
-            context_prefix = unquote(command.context_prefix)
-            static_context = unquote(Macro.escape(command.static_context || %{}))
-
-            # Add aggregate if configured
-            middleware_context =
-              if include_aggregate? do
-                key = if context_prefix, do: :"#{context_prefix}.aggregate", else: :aggregate
-                Map.put(middleware_context, key, aggregate)
-              else
-                middleware_context
-              end
-
-            # Add command if configured
-            middleware_context =
-              if include_command? do
-                key = if context_prefix, do: :"#{context_prefix}.command", else: :command
-                Map.put(middleware_context, key, command)
-              else
-                middleware_context
-              end
-
-            # Add metadata if present and configured
-            middleware_context =
-              if include_metadata? && Map.has_key?(command, :metadata) do
-                metadata = Map.get(command, :metadata, %{})
-                base_key = if context_prefix, do: :"#{context_prefix}.metadata", else: :metadata
-
-                # Either add as a map under metadata key or merge individual keys
-                if is_map(metadata) do
-                  Map.put(middleware_context, base_key, metadata)
-                else
-                  middleware_context
-                end
-              else
-                middleware_context
-              end
-
-            # Add static context if configured
-            middleware_context =
-              if static_context && map_size(static_context) > 0 do
-                Map.merge(middleware_context, static_context)
-              else
-                middleware_context
-              end
-
-            # Prepare options with context
-            action_opts =
-              opts ++
-                [
-                  identity_field: identity_field,
-                  context: middleware_context
-                ]
-
-            cond do
-              # New aggregate (nil aggregate ID)
-              is_nil(aggregate_id) ->
-                # Implementation for new aggregates
-                # Use CommandActionMapper to map command to action with context
-
-                # Convert action result to an event
-                case AshCommanded.Commanded.CommandActionMapper.map_to_action(
-                       command,
-                       resource_module,
-                       action_name,
-                       action_opts
-                     ) do
-                  {:ok, result} ->
-                    # Return the event with command fields, plus any result data from the action
-                    event_data = Map.from_struct(command)
-
-                    # Merge result data if it's a map (for passing additional context)
-                    event_data =
-                      if is_map(result) and not is_struct(result) do
-                        Map.merge(event_data, result)
-                      else
-                        event_data
-                      end
-
-                    {:ok, struct(event_module, event_data)}
-
-                  {:error, reason} ->
-                    # Error is already standardized by CommandActionMapper
-                    {:error, reason}
-                end
-
-              # Existing aggregate, check identity match
-              aggregate_id == command_id ->
-                # Implementation for existing aggregates
-                # Use CommandActionMapper to map command to action with context
-
-                # Convert action result to an event
-                case AshCommanded.Commanded.CommandActionMapper.map_to_action(
-                       command,
-                       resource_module,
-                       action_name,
-                       action_opts
-                     ) do
-                  {:ok, result} ->
-                    # Return the event with command fields, plus any result data from the action
-                    event_data = Map.from_struct(command)
-
-                    # Merge result data if it's a map (for passing additional context)
-                    event_data =
-                      if is_map(result) and not is_struct(result) do
-                        Map.merge(event_data, result)
-                      else
-                        event_data
-                      end
-
-                    {:ok, struct(event_module, event_data)}
-
-                  {:error, reason} ->
-                    # Error is already standardized by CommandActionMapper
-                    {:error, reason}
-                end
-
-              # Identity field mismatch
-              true ->
-                {:error,
-                 Error.aggregate_error("Invalid identity",
-                   field: identity_field,
-                   value: command_id,
-                   context: %{
-                     aggregate_id: aggregate_id,
-                     command_id: command_id
                    }
                  )}
             end
