@@ -441,7 +441,7 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
         query = Ash.Query.filter(query, ^[{identity_field, identity_value}])
         
         case Ash.read_one(query) do
-          {:ok, record} ->
+          {:ok, record} when not is_nil(record) ->
             changeset = Ash.Changeset.new(record)
             changeset = Ash.Changeset.for_action(changeset, action_name, params)
             changeset = Ash.Changeset.set_context(changeset, context)
@@ -450,12 +450,24 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
             
           {:error, error} ->
             {:error, error}
+<<<<<<< HEAD
             
           nil ->
             {:error, Error.action_error("Record not found", 
               field: identity_field, 
               value: identity_value,
               context: %{resource: resource, action: action_name})}
+=======
+
+          # Ash.read_one/1 returns {:ok, nil} when nothing matches.
+          {:ok, nil} ->
+            {:error,
+             Error.action_error("Record not found",
+               field: identity_field,
+               value: identity_value,
+               context: %{resource: resource, action: action_name}
+             )}
+>>>>>>> b669db7 (Report a missing record instead of crashing in update, destroy and read)
         end
       end
     else
@@ -479,7 +491,7 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
         query = Ash.Query.filter(query, ^[{identity_field, identity_value}])
         
         case Ash.read_one(query) do
-          {:ok, record} ->
+          {:ok, record} when not is_nil(record) ->
             changeset = Ash.Changeset.new(record)
             changeset = Ash.Changeset.for_action(changeset, action_name, params)
             changeset = Ash.Changeset.set_context(changeset, context)
@@ -488,12 +500,24 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
             
           {:error, error} ->
             {:error, error}
+<<<<<<< HEAD
             
           nil ->
             {:error, Error.action_error("Record not found", 
               field: identity_field, 
               value: identity_value,
               context: %{resource: resource, action: action_name})}
+=======
+
+          # Ash.read_one/1 returns {:ok, nil} when nothing matches.
+          {:ok, nil} ->
+            {:error,
+             Error.action_error("Record not found",
+               field: identity_field,
+               value: identity_value,
+               context: %{resource: resource, action: action_name}
+             )}
+>>>>>>> b669db7 (Report a missing record instead of crashing in update, destroy and read)
         end
       end
     else
@@ -517,17 +541,29 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
         query = Ash.Query.filter(query, ^[{identity_field, identity_value}])
         
         case Ash.read_one(query) do
-          {:ok, record} ->
+          {:ok, record} when not is_nil(record) ->
             {:ok, record}
             
           {:error, error} ->
             {:error, error}
+<<<<<<< HEAD
             
           nil ->
             {:error, Error.action_error("Record not found", 
               field: identity_field, 
               value: identity_value,
               context: %{resource: resource, action: action_name})}
+=======
+
+          # Ash.read_one/1 returns {:ok, nil} when nothing matches.
+          {:ok, nil} ->
+            {:error,
+             Error.action_error("Record not found",
+               field: identity_field,
+               value: identity_value,
+               context: %{resource: resource, action: action_name}
+             )}
+>>>>>>> b669db7 (Report a missing record instead of crashing in update, destroy and read)
         end
       end
     else
