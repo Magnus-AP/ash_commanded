@@ -606,11 +606,12 @@ defmodule AshCommanded.Commanded.Transformers.GenerateAggregateModule do
         """
         def apply(%__MODULE__{} = state, %unquote(event_module){} = event) do
           try do
-            # Copy event fields to the aggregate state
+            # Copy the event fields the aggregate keeps (its attributes) to its
+            # state; fields that are only action arguments stay on the event.
             changes =
               unquote(event_fields)
               |> Enum.reduce(%{}, fn field, acc ->
-                if Map.has_key?(event, field) do
+                if Map.has_key?(state, field) and Map.has_key?(event, field) do
                   Map.put(acc, field, Map.get(event, field))
                 else
                   acc

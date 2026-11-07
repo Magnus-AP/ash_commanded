@@ -1,6 +1,7 @@
 defmodule AshCommanded.Commanded.Verifiers.ValidateCommandFields do
   @moduledoc """
-  Verifies that all fields declared in commands exist as attributes in the resource.
+  Verifies that all fields declared in commands exist as attributes in the resource
+  or as arguments of the action the command runs.
 
   This ensures that commands don't reference non-existent fields, which would lead to
   runtime errors.
@@ -8,6 +9,7 @@ defmodule AshCommanded.Commanded.Verifiers.ValidateCommandFields do
 
   use Spark.Dsl.Verifier
 
+  alias AshCommanded.Commanded.Verifiers.KnownFields
   alias Spark.Dsl.Verifier
   alias Spark.Error.DslError
 
@@ -15,15 +17,10 @@ defmodule AshCommanded.Commanded.Verifiers.ValidateCommandFields do
   def verify(dsl_state) do
     resource_module = Verifier.get_persisted(dsl_state, :module)
     commands = Verifier.get_entities(dsl_state, [:commanded, :commands])
-    resource_attributes = get_resource_attributes(dsl_state)
-
     commands_with_invalid_fields =
       commands
-      |> Enum.filter(&command_has_invalid_fields?(&1, resource_attributes))
-      |> Enum.map(fn command ->
-        invalid_fields = command.fields -- resource_attributes
-        {command.name, invalid_fields}
-      end)
+      |> Enum.map(fn command -> {command.name, command.fields -- KnownFields.for_command(dsl_state, command)} end)
+      |> Enum.reject(fn {_name, invalid_fields} -> invalid_fields == [] end)
 
     case commands_with_invalid_fields do
       [] ->
@@ -35,16 +32,6 @@ defmodule AshCommanded.Commanded.Verifiers.ValidateCommandFields do
     end
   end
 
-  defp get_resource_attributes(dsl_state) do
-    dsl_state
-    |> Verifier.get_entities([:attributes])
-    |> Enum.map(& &1.name)
-  end
-
-  defp command_has_invalid_fields?(command, resource_attributes) do
-    Enum.any?(command.fields, &(&1 not in resource_attributes))
-  end
-
   defp build_error_message(resource_module, invalid_commands) do
     commands_with_errors =
       invalid_commands
@@ -54,11 +41,11 @@ defmodule AshCommanded.Commanded.Verifiers.ValidateCommandFields do
       |> Enum.join("\n")
 
     """
-    The following commands in #{inspect(resource_module)} reference fields that don't exist as attributes:
+    The following commands in #{inspect(resource_module)} reference fields that are neither attributes nor arguments of the command's action:
 
     #{commands_with_errors}
 
-    All command fields must correspond to existing resource attributes.
+    All command fields must be resource attributes or arguments of the command's action.
     """
   end
 end
