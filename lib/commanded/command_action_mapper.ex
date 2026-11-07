@@ -497,7 +497,7 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
         query = Ash.Query.filter(query, ^[{identity_field, identity_value}])
 
         case Ash.read_one(query) do
-          {:ok, record} ->
+          {:ok, record} when not is_nil(record) ->
             changeset = Ash.Changeset.new(record)
             changeset = Ash.Changeset.for_action(changeset, action_name, params)
             changeset = Ash.Changeset.set_context(changeset, context)
@@ -507,7 +507,8 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
           {:error, error} ->
             {:error, error}
 
-          nil ->
+          # Ash.read_one/1 returns {:ok, nil} when nothing matches.
+          {:ok, nil} ->
             {:error,
              Error.action_error("Record not found",
                field: identity_field,
@@ -538,7 +539,7 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
         query = Ash.Query.filter(query, ^[{identity_field, identity_value}])
 
         case Ash.read_one(query) do
-          {:ok, record} ->
+          {:ok, record} when not is_nil(record) ->
             changeset = Ash.Changeset.new(record)
             changeset = Ash.Changeset.for_action(changeset, action_name, params)
             changeset = Ash.Changeset.set_context(changeset, context)
@@ -548,7 +549,8 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
           {:error, error} ->
             {:error, error}
 
-          nil ->
+          # Ash.read_one/1 returns {:ok, nil} when nothing matches.
+          {:ok, nil} ->
             {:error,
              Error.action_error("Record not found",
                field: identity_field,
@@ -579,13 +581,14 @@ defmodule AshCommanded.Commanded.CommandActionMapper do
         query = Ash.Query.filter(query, ^[{identity_field, identity_value}])
 
         case Ash.read_one(query) do
-          {:ok, record} ->
+          {:ok, record} when not is_nil(record) ->
             {:ok, record}
 
           {:error, error} ->
             {:error, error}
 
-          nil ->
+          # Ash.read_one/1 returns {:ok, nil} when nothing matches.
+          {:ok, nil} ->
             {:error,
              Error.action_error("Record not found",
                field: identity_field,
