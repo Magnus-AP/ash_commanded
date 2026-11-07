@@ -195,7 +195,13 @@ defmodule AshCommanded.Commanded.Transformers.GenerateAggregateModule do
 
     # Generate execute function for each command
     execute_functions =
-      generate_execute_functions(commands, events, command_modules, event_modules)
+      generate_execute_functions(
+        commands,
+        events,
+        command_modules,
+        event_modules,
+        dsl_state && Transformer.get_persisted(dsl_state, :module)
+      )
 
     # Generate apply function for each event
     apply_functions = generate_apply_functions(events, event_modules)
@@ -229,7 +235,7 @@ defmodule AshCommanded.Commanded.Transformers.GenerateAggregateModule do
   end
 
   # Generate execute/2 function for each command
-  defp generate_execute_functions(commands, events, command_modules, event_modules) do
+  defp generate_execute_functions(commands, events, command_modules, event_modules, resource) do
     Enum.map(commands, fn command ->
       command_module = command_modules[command.name]
 
@@ -305,13 +311,8 @@ defmodule AshCommanded.Commanded.Transformers.GenerateAggregateModule do
           - `{:error, error}` - When command execution fails with standardized error
           """
           def execute(%__MODULE__{} = aggregate, %unquote(command_module){} = command) do
-            # Extract resource module from command
-            resource_module =
-              command.__struct__
-              |> Module.split()
-              # Remove "Commands" and command name
-              |> Enum.drop(-2)
-              |> Module.concat()
+            # The resource whose DSL generated this aggregate.
+            resource_module = unquote(resource)
 
             # Set up command context
             context = %{
@@ -544,13 +545,8 @@ defmodule AshCommanded.Commanded.Transformers.GenerateAggregateModule do
               "No matching event found for command #{unquote(inspect(command.name))}"
             )
 
-            # Extract resource module from command
-            resource_module =
-              command.__struct__
-              |> Module.split()
-              # Remove "Commands" and command name
-              |> Enum.drop(-2)
-              |> Module.concat()
+            # The resource whose DSL generated this aggregate.
+            resource_module = unquote(resource)
 
             # Apply middleware even for not implemented commands
             try do
